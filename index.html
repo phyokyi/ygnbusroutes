@@ -1,71 +1,204 @@
-
 <!DOCTYPE html>
 <html>
+
 <head>
-	
+
 	<title>Yangon Bus Routes</title>
 
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	
+	<!--
 	<link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.ico" />
-
+-->
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
 	<script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 
 
-	
+	<script src="routes.js"></script>
+	<!--[if lte IE 8]><link rel="stylesheet" href="../libs/leaflet/leaflet.ie.css" /><![endif]-->
+	<!---
+	<link rel="stylesheet" href="libs/leaflet/leaflet.css" />
+
+	<link rel="stylesheet" href="dist/leaflet.label.css" />
+
+	<script src="libs/leaflet/leaflet-src.js"></script>
+
+	<script src="src/Label.js"></script>
+	<script src="src/BaseMarkerMethods.js"></script>
+	<script src="src/Marker.Label.js"></script>
+	<script src="src/CircleMarker.Label.js"></script>
+	<script src="src/Path.Label.js"></script>
+	<script src="src/Map.Label.js"></script>
+	<script src="src/FeatureGroup.Label.js"></script>
+-->
+
+
+	<style>
+		.my-label {
+			position: absolute;
+			width: 50px;
+			font-size: 12px;
+		}
+	</style>
+
 </head>
-<body>
 
-	<h1> Yangon Bus Routes </h1>
-	<h3> This is not the official maps from Yangon Bus Service.</h3>
-	<h3> Updated: Jan 9, 2017 </h3>
+<body style="height: 100%;">
+
+	<div style="text-align: center;">
+		<b style="text-size: 15px;"> Yangon Bus Routes </b> <br/>
+		<small> This is not the official maps from Yangon Bus Service. Just for analysis purpose...</small><br/>
+		<small> Updated: Jan 11, 2017 </small>
+	</div>
+	<div id="mapid" style="width: 100%;height: 500px;"></div>
 
 
-<div id="mapid" style="width: 600px; height: 400px;"></div>
-<script>
+	<script>
+		/*var mymap = L.map('mapid').setView([16.79435, 96.17037], 13);
 
-	var mymap = L.map('mapid').setView([51.505, -0.09], 13);
+																												L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpandmbXliNDBjZWd2M2x6bDk3c2ZtOTkifQ._QA7i5Mpkd_m30IGElHziw', {
+																													maxZoom: 18,
+																													attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+																														'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+																														'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+																													id: 'mapbox.streets'
+																												}).addTo(mymap);*/
 
-	L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpandmbXliNDBjZWd2M2x6bDk3c2ZtOTkifQ._QA7i5Mpkd_m30IGElHziw', {
-		maxZoom: 18,
-		attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+		var mbAttr = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
 			'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
 			'Imagery © <a href="http://mapbox.com">Mapbox</a>',
-		id: 'mapbox.streets'
-	}).addTo(mymap);
+			mbUrl = 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpandmbXliNDBjZWd2M2x6bDk3c2ZtOTkifQ._QA7i5Mpkd_m30IGElHziw';
 
-	L.marker([51.5, -0.09]).addTo(mymap)
-		.bindPopup("<b>Hello world!</b><br />I am a popup.").openPopup();
+		var grayscale = L.tileLayer(mbUrl, {
+			id: 'mapbox.light',
+			attribution: mbAttr
+		});
+		var streets = L.tileLayer(mbUrl, {
+			id: 'mapbox.streets',
+			attribution: mbAttr
+		});
+		var osmoriginal = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+		}); //.addTo(mymap);
 
-	L.circle([51.508, -0.11], 500, {
-		color: 'red',
-		fillColor: '#f03',
-		fillOpacity: 0.5
-	}).addTo(mymap).bindPopup("I am a circle.");
+		var polylines = [];
+		var polylinesforlg = new L.LayerGroup();
 
-	L.polygon([
-		[51.509, -0.08],
-		[51.503, -0.06],
-		[51.51, -0.047]
-	]).addTo(mymap).bindPopup("I am a polygon.");
+		for (var i = 0; i < 59; i++) {
+			var color;
+			var r = Math.floor(Math.random() * 255);
+			var g = Math.floor(Math.random() * 255);
+			var b = Math.floor(Math.random() * 255);
+			color = "rgb(" + r + " ," + g + "," + b + ")";
+			var mark = i;
+			var routeno = i + 1;
+			if (routeno > 12) {
+				routeno = routeno + 1;
+			}
+
+			var myroute = L.polyline(routes[i], {
+				//color: 'red',
+				color: color,
+				weight: 3,
+				opacity: 50
+					//}).addTo(mymap).bindPopup("Route " + mark);
+			}).addTo(polylinesforlg).bindPopup("Route " + routeno);
+			//console.log("route " + i + " is added.");
+			//L.marker([16.79435, -89.401052]).addTo(mymap);
 
 
-	var popup = L.popup();
+			//L.marker([-37.785, 175.263])
+			//.bindLabel('A sweet static label!', { noHide: true })
+			//.addTo(map);
 
-	function onMapClick(e) {
-		popup
-			.setLatLng(e.latlng)
-			.setContent("You clicked the map at " + e.latlng.toString())
-			.openOn(mymap);
-	}
+			polylines.push(myroute);
 
-	mymap.on('click', onMapClick);
+		}
 
-</script>
+		var mymap = L.map('mapid', {
+			center: [16.79435, 96.17037],
+			zoom: 13,
+			layers: [streets, polylinesforlg]
+		});
+
+		var popup = L.popup();
+
+		function onMapClick(e) {
+			console.log(e);
+			popup
+				.setLatLng(e.latlng)
+				.setContent("You clicked the map at " + e.latlng.toString())
+				.openOn(mymap);
+		}
+
+		mymap.on('click', onMapClick);
 
 
+
+		var baseLayers = {
+			"OSM": osmoriginal,
+			"Grayscale": grayscale,
+			"Streets": streets
+		};
+
+
+		//var mymap = L.map('mapid').setView([16.79435, 96.17037], 13);
+
+
+
+		//var mymap = new L.Map('map', {center: new L.LatLng(16.79435, 96.17037), zoom: 13});
+		//var googleLayer = new L.Google('ROADMAP');
+		//map.addLayer(googleLayer);
+
+		var overlays = {}; // main object
+		var count = 0;
+		// add 100 sub-object values
+		for (i = 0; i < 59; i++) {
+			var routeno = i + 1;
+			if (routeno > 12) {
+				routeno = routeno + 1;
+			}
+			//layercontrol added
+			overlays['Route ' + routeno] /*property name or key of choice*/ = polylines[i];
+
+			/*
+						//marker added
+						$.each(routes[i], function(index, value) {
+							//console.log(index + ": " + value);
+							var result = count % 6;
+							if (result == 0) {
+								var marker = new L.marker([value[0], value[1]], {
+									opacity: 0.01
+								});
+								marker.bindLabel('Route ' + routeno, {
+									noHide: true,
+									className: "my-label",
+									offset: [0, 0]
+								});
+								marker.addTo(mymap);
+								//.openPopup()
+							}
+							count++;
+
+						});*/
+
+		}
+		/*
+				var overlays = {
+					"polylinesforlg": polylinesforlg
+				};
+		*/
+		L.control.layers(baseLayers, overlays).addTo(mymap);
+
+
+		//mymap.fitBounds(route.getBounds());
+	</script>
+	<div style="text-align: center;">
+<small>Created by Phyo Kyi</small><br/>
+<small>phyokyi1986@gmail.com</small><br/>
+</div>
 
 </body>
+
 </html>
